@@ -37,4 +37,5 @@ No build tools or package managers required. Open `index.html` directly in any m
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).
+
