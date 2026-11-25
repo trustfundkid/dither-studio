@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dither-studio — Client-Side Halftone Lab</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>dither-studio</h1>
+        <p class="subtitle">Offline halftone &amp; error-diffusion lab</p>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="live-strip" id="liveStrip" aria-label="Live halftone proof strip">
+        <canvas id="liveRibbon" width="92" height="16"></canvas>
+      </div>
+
+      <select id="sampleSelect" class="select-control" aria-label="Choose image source">
+        <option value="sphere" selected>Sample: Sphere</option>
+        <option value="horizon">Sample: Horizon</option>
+        <option value="wedge">Sample: Wedge</option>
+        <option value="custom" hidden>Your Image</option>
+      </select>
+
+      <label class="btn btn-secondary" for="fileInput">
+        Upload Image
+        <input id="fileInput" type="file" accept="image/*" hidden />
+      </label>
+
+      <button id="compareBtn" class="btn btn-secondary" type="button" title="Hold Spacebar to peek at original">
+        Hold Original
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="stage-wrap" id="dropZone" aria-label="Canvas preview">
+      <div class="stage-frame">
+        <span class="reg reg-tl" aria-hidden="true"></span>
+        <span class="reg reg-tr" aria-hidden="true"></span>
+        <span class="reg reg-bl" aria-hidden="true"></span>
+        <span class="reg reg-br" aria-hidden="true"></span>
+
+        <canvas id="outputCanvas"></canvas>
+
+        <div class="drop-overlay" id="dropOverlay" aria-hidden="true">
+          <div class="drop-card">Drop image to load</div>
+        </div>
+      </div>
+
+      <footer class="telemetry">
+        <span id="metaDims">800 × 560 px</span>
+        <span class="sep">·</span>
+        <span id="metaAlgo">Atkinson</span>
+        <span class="sep">·</span>
+        <span id="metaScale">2× pixel</span>
+        <span class="sep">·</span>
+        <span id="metaTime">0.0 ms</span>
+      </footer>
+    </section>
+
+    <aside class="deck" aria-label="Dithering controls">
+      <div class="deck-section">
+        <div class="section-head">
+          <h2>Algorithm</h2>
+          <span class="section-code">01</span>
+        </div>
+        <div class="algo-grid" id="algoGrid">
+          <button class="seg active" data-algo="atkinson" type="button">Atkinson</button>
+          <button class="seg" data-algo="floyd" type="button">Floyd-Steinberg</button>
+          <button class="seg" data-algo="stucki" type="button">Stucki</button>
+          <button class="seg" data-algo="bayer4" type="button">Bayer 4×4</button>
+          <button class="seg" data-algo="bayer8" type="button">Bayer 8×8</button>
+          <button class="seg" data-algo="threshold" type="button">Threshold</button>
+        </div>
+      </div>
+
+      <div class="deck-section">
+        <div class="section-head">
+          <h2>Ink Palette</h2>
+          <span class="section-code">02</span>
+        </div>
+        <div class="palette-grid" id="paletteGrid">
+          <button class="pal active" data-palette="newsprint" type="button">
+            <span class="swatch"><i style="background:#141312"></i><i style="background:#f4f1ea"></i></span>
+            Newsprint
+          </button>
+          <button class="pal" data-palette="macintosh" type="button">
+            <span class="swatch"><i style="background:#000000"></i><i style="background:#ffffff"></i></span>
+            Mac 1984
+          </button>
+          <button class="pal" data-palette="dmg" type="button">
+            <span class="swatch"><i style="background:#0f380f"></i><i style="background:#8bac0f"></i></span>
+            Game Boy
+          </button>
+          <button class="pal" data-palette="risograph" type="button">
+            <span class="swatch"><i style="background:#d9381e"></i><i style="background:#faf6ee"></i></span>
+            Risograph
+          </button>
+          <button class="pal" data-palette="cyanotype" type="button">
+            <span class="swatch"><i style="background:#122b4a"></i><i style="background:#f2f5f8"></i></span>
+            Cyanotype
+          </button>
+          <button class="pal" data-palette="amber" type="button">
+            <span class="swatch"><i style="background:#141008"></i><i style="background:#ffb000"></i></span>
+            Amber CRT
+          </button>
+        </div>
+
+        <div class="custom-ink">
+          <button class="pal pal-custom" data-palette="custom" id="customPalBtn" type="button">
+            Custom Duotone
+          </button>
+          <div class="color-pickers">
+            <label class="color-chip" title="Dark ink color">
+              <span>Ink</span>
+              <input id="inkColor" type="color" value="#1a1a1a" />
+            </label>
+            <label class="color-chip" title="Paper background color">
+              <span>Paper</span>
+              <input id="paperColor" type="color" value="#f0ebe1" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="deck-section">
+        <div class="section-head">
+          <h2>Tone &amp; Raster</h2>
+          <span class="section-code">03</span>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-meta">
+            <label for="scaleSlider">Pixel Scale</label>
+            <output id="scaleVal">2×</output>
+          </div>
+          <input id="scaleSlider" type="range" min="1" max="6" step="1" value="2" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-meta">
+            <label for="contrastSlider">Contrast</label>
+            <output id="contrastVal">10</output>
+          </div>
+          <input id="contrastSlider" type="range" min="-100" max="100" step="1" value="10" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-meta">
+            <label for="brightnessSlider">Brightness</label>
+            <output id="brightnessVal">0</output>
+          </div>
+          <input id="brightnessSlider" type="range" min="-100" max="100" step="1" value="0" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-meta">
+            <label for="biasSlider">Threshold Bias</label>
+            <output id="biasVal">0</output>
+          </div>
+          <input id="biasSlider" type="range" min="-64" max="64" step="1" value="0" />
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle">
+            <input id="serpentineToggle" type="checkbox" checked />
+            <span>Serpentine scan</span>
+          </label>
+          <label class="toggle">
+            <input id="invertToggle" type="checkbox" />
+            <span>Invert ink</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="deck-footer">
+        <button id="downloadBtn" class="btn btn-primary" type="button">Download PNG</button>
+        <div class="footer-sub">
+          <button id="copyBtn" class="btn btn-secondary" type="button">Copy PNG</button>
+          <button id="resetBtn" class="btn btn-ghost" type="button">Reset</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="dither.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
